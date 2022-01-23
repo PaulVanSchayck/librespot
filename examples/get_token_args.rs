@@ -1,10 +1,10 @@
 use std::env;
-use std::path::PathBuf;
-use std::str::FromStr;
 
 use librespot::core::config::SessionConfig;
 use librespot::core::keymaster;
 use librespot::core::session::Session;
+use librespot::core::authentication::Credentials;
+use librespot::protocol::authentication::AuthenticationType;
 
 const SCOPES: &str =
     "streaming,user-read-playback-state,user-modify-playback-state,user-read-currently-playing";
@@ -14,16 +14,16 @@ async fn main() {
     let session_config = SessionConfig::default();
 
     let args: Vec<_> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: {} CREDENTIALS_CACHE CLIENT_ID", args[0]);
+    if args.len() != 4 {
+        eprintln!("Usage: {} USERNAME AUTH_DATA CLIENT_ID", args[0]);
         return;
     }
 
-    let cache =
-        librespot::core::cache::Cache::new(Some(PathBuf::from_str(&args[1]).unwrap()), None, None, None)
-            .expect("Could not create librespot cache");
-
-    let credentials = cache.credentials().expect("No credentials present");
+    let credentials = Credentials {
+        username: String::from(&args[1]),
+        auth_type: AuthenticationType::AUTHENTICATION_STORED_SPOTIFY_CREDENTIALS,
+        auth_data: base64::decode(String::from(&args[2])).unwrap(),
+    };
 
     let session = Session::connect(session_config, credentials, None)
         .await
@@ -31,7 +31,7 @@ async fn main() {
 
     println!(
         "{}",
-        keymaster::get_token(&session, &args[2], SCOPES)
+        keymaster::get_token(&session, &args[3], SCOPES)
             .await
             .unwrap()
             .access_token
